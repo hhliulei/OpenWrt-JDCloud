@@ -90,7 +90,8 @@ jobs:
     name: ${{ matrix.source }} / ${{ matrix.device }} / ${{ matrix.flavour }}
     needs: validate
     # 手动触发时按输入过滤；push / 定时触发时 12 个全编。
-    if: ${{ github.event_name != 'workflow_dispatch' || (inputs.source == 'all' || inputs.source == matrix.source) && (inputs.device == 'all' || inputs.device == matrix.device) && (inputs.flavour == 'all' || inputs.flavour == matrix.flavour) }}
+    # 注意：job 级 if 里不能引用 matrix，过滤改在下面的 filter 步骤做，
+    # 后面的步骤都用 if: steps.filter.outputs.run == 'true' 来跳过不匹配的组合。
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     strategy:
@@ -117,10 +118,28 @@ jobs:
       FLAVOUR: ${{ matrix.flavour }}
       OPENWRT_DIR: openwrt
     steps:
+      - name: 检查手动触发的过滤条件
+        id: filter
+        env:
+          INPUT_SOURCE: ${{ inputs.source }}
+          INPUT_DEVICE: ${{ inputs.device }}
+          INPUT_FLAVOUR: ${{ inputs.flavour }}
+        run: |
+          RUN=true
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            [ "$INPUT_SOURCE" = "all" ] || [ "$INPUT_SOURCE" = "$SOURCE" ] || RUN=false
+            [ "$INPUT_DEVICE" = "all" ] || [ "$INPUT_DEVICE" = "$DEVICE" ] || RUN=false
+            [ "$INPUT_FLAVOUR" = "all" ] || [ "$INPUT_FLAVOUR" = "$FLAVOUR" ] || RUN=false
+          fi
+          echo "run=$RUN" >> "$GITHUB_OUTPUT"
+          echo "这个组合是否需要编译：$RUN（$SOURCE / $DEVICE / $FLAVOUR）"
+
       - name: Checkout
+        if: steps.filter.outputs.run == 'true'
         uses: actions/checkout@v4
 
       - name: 安装编译依赖
+        if: steps.filter.outputs.run == 'true'
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
@@ -137,6 +156,7 @@ jobs:
           df -h .
 
       - name: 腾出磁盘空间（OpenWrt 全编很占地方）
+        if: steps.filter.outputs.run == 'true'
         run: |
           sudo rm -rf /usr/share/dotnet /opt/hostedtoolcache /usr/local/share/boost \
             "$AGENT_TOOLSDIRECTORY" 2>/dev/null || true
@@ -144,6 +164,7 @@ jobs:
           df -h .
 
       - name: 确定源码地址与构建变量
+        if: steps.filter.outputs.run == 'true'
         run: |
           case "$SOURCE" in
             immortalwrt) REPO_URL="https://github.com/laipeng668/immortalwrt.git"; REPO_BRANCH="openwrt-25.12" ;;
@@ -160,6 +181,7 @@ jobs:
           echo "源码：$REPO_URL（$REPO_BRANCH）"
 
       - name: 还原下载缓存
+        if: steps.filter.outputs.run == 'true'
         uses: actions/cache@v4
         with:
           path: openwrt/dl
@@ -167,30 +189,37 @@ jobs:
           restore-keys: dl-${{ matrix.source }}-
 
       - name: 克隆源码
+        if: steps.filter.outputs.run == 'true'
         run: |
           git clone --depth=1 --single-branch --branch "$REPO_BRANCH" "$REPO_URL" "$OPENWRT_DIR"
           cd "$OPENWRT_DIR" && echo "SOURCE_HASH=$(git log -1 --pretty=format:'%H')" >> "$GITHUB_ENV"
 
       - name: diy-part1（追加插件 feed，不裁剪默认 feed）
+        if: steps.filter.outputs.run == 'true'
         run: bash scripts/diy-part1.sh "$SOURCE" "$DEVICE" "$FLAVOUR"
 
       - name: 复制 .config
+        if: steps.filter.outputs.run == 'true'
         run: cp "$CONFIG_FILE" "$OPENWRT_DIR/.config"
 
       - name: 更新 feeds（全部）
+        if: steps.filter.outputs.run == 'true'
         run: |
           cd "$OPENWRT_DIR"
           ./scripts/feeds update -a
 
       - name: diy-part2（Argon / athena-led / 默认值 / 密码哈希）
+        if: steps.filter.outputs.run == 'true'
         run: bash scripts/diy-part2.sh "$SOURCE" "$DEVICE" "$FLAVOUR"
 
       - name: 安装 feeds（全部）
+        if: steps.filter.outputs.run == 'true'
         run: |
           cd "$OPENWRT_DIR"
           ./scripts/feeds install -a
 
       - name: defconfig + 机型校验
+        if: steps.filter.outputs.run == 'true'
         run: |
           cd "$OPENWRT_DIR"
           make defconfig
@@ -199,16 +228,19 @@ jobs:
           echo "机型校验通过：$DEVICE"
 
       - name: 下载源码包
+        if: steps.filter.outputs.run == 'true'
         run: |
           cd "$OPENWRT_DIR"
           make download -j"$(nproc)"
 
       - name: 编译固件
+        if: steps.filter.outputs.run == 'true'
         run: |
           cd "$OPENWRT_DIR"
           make -j"$(nproc)" || make -j1 V=s
 
       - name: 收集产物与发布说明
+        if: steps.filter.outputs.run == 'true'
         run: |
           KVER="$(grep -m1 '^KERNEL_PATCHVER:=' "$OPENWRT_DIR/target/linux/qualcommax/Makefile" | cut -d= -f2 | tr -d ' ')"
           [ "$SOURCE" = immortalwrt ] && KVER="${KVER}（测试内核，CONFIG_TESTING_KERNEL）"
@@ -267,6 +299,7 @@ jobs:
           ls -la artifacts/
 
       - name: 上传产物（备用下载）
+        if: steps.filter.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: firmware-${{ env.TAG }}
@@ -274,6 +307,7 @@ jobs:
           retention-days: 7
 
       - name: 发布 Release
+        if: steps.filter.outputs.run == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
