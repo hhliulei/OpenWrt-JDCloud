@@ -23,7 +23,7 @@ JOBS="${JOBS:-$(nproc)}"
 case "$SOURCE" in
     immortalwrt) REPO_URL="https://github.com/laipeng668/immortalwrt.git"; REPO_BRANCH="openwrt-25.12" ;;
     libwrt)      REPO_URL="https://github.com/LiBwrt/openwrt-6.x.git";    REPO_BRANCH="25.12-nss" ;;
-    openwrt)     REPO_URL="https://github.com/openwrt/openwrt.git";       REPO_BRANCH="openwrt-25.12" ;;
+    openwrt)     REPO_URL="https://github.com/openwrt/openwrt.git";       REPO_BRANCH="main" ;;  # 25.12 分支无 jdcloud 机型
     *) echo "未知 source：$SOURCE" >&2; exit 1 ;;
 esac
 
@@ -55,8 +55,8 @@ echo "==> feeds install"
 
 echo "==> defconfig + 机型校验"
 make defconfig
-grep -q "CONFIG_TARGET_DEVICE_qualcommax_ipq60xx_DEVICE_${DEVICE}=y" .config \
-    || { echo "错误：defconfig 后 .config 里没有机型 $DEVICE，可能是设备名拼写（- 与 _）与上游 Kconfig 不一致" >&2; exit 1; }
+grep -q "CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_${DEVICE}=y" .config \
+    || { echo "错误：defconfig 后 .config 里没有机型 $DEVICE，可能是机型符号与上游 Kconfig 不一致（见 SOURCES.md）" >&2; exit 1; }
 
 echo "==> 下载源码包"
 make download -j"$JOBS"
