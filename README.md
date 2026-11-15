@@ -13,7 +13,7 @@ GitHub Actions 全自动编译，三个源码、两个机型、纯净版与插�
 | --- | --- | --- | --- | --- | --- |
 | ImmortalWrt | `laipeng668/immortalwrt.git` | `openwrt-25.12` | 测试内核（当前 6.18） | NSS 12.5 | 雅典娜：正常 ath11k；太乙：无 |
 | LiBwrt | `LiBwrt/openwrt-6.x.git` | `25.12-nss` | 6.12 | NSS 11.4 | 雅典娜：WiFi offload 开；太乙：无 |
-| 官方 OpenWrt | `openwrt/openwrt.git` | `openwrt-25.12` | 6.12 | 无（上游不含 NSS） | 雅典娜：正常 ath11k；太乙：无 |
+| 官方 OpenWrt | `openwrt/openwrt.git` | `main`（快照，25.12 分支无 jdcloud 机型） | 跟 main 默认内核（当前 6.18） | 无（上游不含 NSS） | 雅典娜：正常 ath11k；太乙：无 |
 
 内核不写死版本号：用各分支的默认内核，构建时以 Release 里附的
 `upstream-lock.txt` 为准。详细说明与假设清单见 [SOURCES.md](SOURCES.md)。
