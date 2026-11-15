@@ -74,7 +74,7 @@ jobs:
                 cfg="configs/${source}-${device}-${flavour}.config"
                 [ -f "$cfg" ] || { echo "缺配置文件：$cfg"; exit 1; }
                 grep -q '^CONFIG_TARGET_qualcommax=y$' "$cfg" || { echo "$cfg 缺 target 行"; exit 1; }
-                grep -q "CONFIG_TARGET_DEVICE_qualcommax_ipq60xx_DEVICE_${device}=y" "$cfg" \
+                grep -q "CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_${device}=y" "$cfg" \
                   || { echo "$cfg 缺机型行：$device"; exit 1; }
                 case "$device" in
                   jdcloud_re-cs-07)
@@ -169,7 +169,7 @@ jobs:
           case "$SOURCE" in
             immortalwrt) REPO_URL="https://github.com/laipeng668/immortalwrt.git"; REPO_BRANCH="openwrt-25.12" ;;
             libwrt)      REPO_URL="https://github.com/LiBwrt/openwrt-6.x.git";    REPO_BRANCH="25.12-nss" ;;
-            openwrt)     REPO_URL="https://github.com/openwrt/openwrt.git";       REPO_BRANCH="openwrt-25.12" ;;
+            openwrt)     REPO_URL="https://github.com/openwrt/openwrt.git";       REPO_BRANCH="main" ;;  # 25.12 分支无 jdcloud 机型，见 SOURCES.md
           esac
           {
             echo "REPO_URL=$REPO_URL"
@@ -223,8 +223,8 @@ jobs:
         run: |
           cd "$OPENWRT_DIR"
           make defconfig
-          grep -q "CONFIG_TARGET_DEVICE_qualcommax_ipq60xx_DEVICE_${DEVICE}=y" .config \
-            || { echo "错误：defconfig 后 .config 里没有机型 $DEVICE"; echo "可能原因：设备名在上游 Kconfig 里的拼写变了（- 与 _），见 SOURCES.md 的假设清单"; exit 1; }
+          grep -q "CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_${DEVICE}=y" .config \
+            || { echo "错误：defconfig 后 .config 里没有机型 $DEVICE"; echo "可能原因：机型符号不对（须用 CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_<机型>=y 的 choice 符号）或该分支上游没有此机型，见 SOURCES.md"; exit 1; }
           echo "机型校验通过：$DEVICE"
 
       - name: 下载源码包
