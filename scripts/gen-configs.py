@@ -42,7 +42,10 @@ SOURCES = {
     },
     "openwrt": {
         "repo": "https://github.com/openwrt/openwrt.git",
-        "branch": "openwrt-25.12",
+        # 注意：官方 openwrt-25.12 分支里没有 jdcloud_re-cs-02/_07 这两个机型
+        # （2026-11-15 核对：25.12 分支的 ipq60xx.mk 和 25.12.3 发布镜像里都没有），
+        # jdcloud 支持 2026-01 才合进 main，所以官方源码只能用 main 分支（快照，跟最新内核）。
+        "branch": "main",
         "label": "官方 OpenWrt",
     },
 }
@@ -61,9 +64,12 @@ def base_config(source: str, device: str) -> list[str]:
         "# 纯净版基础：完整网络功能 + LuCI + 常用管理插件，保证稳定，不过度精简。",
         "CONFIG_TARGET_qualcommax=y",
         "CONFIG_TARGET_qualcommax_ipq60xx=y",
-        f"CONFIG_TARGET_DEVICE_qualcommax_ipq60xx_DEVICE_{device}=y",
+        # 机型必须用 Target Profile choice 的符号 CONFIG_TARGET_<板子>_<子目标>_DEVICE_<机型>，
+        # 不能用 CONFIG_TARGET_DEVICE_...——后者是多机型（MULTI_PROFILE）菜单里的布尔项，
+        # 不开 MULTI_PROFILE 时 defconfig 会悄悄丢掉它，choice 就默认选中首个机型
+        # （8devices_mango-dvk），导致 2026-11-15 的 #3/#4 全部失败。已本地验证。
+        f"CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_{device}=y",
         "CONFIG_TARGET_ROOTFS_SQUASHFS=y",
-        "CONFIG_TARGET_PER_DEVICE_ROOTFS=y",
         "CONFIG_DEVEL=y",
         "CONFIG_CCACHE=y",
         "# 中文界面（LuCI 语言包）",
