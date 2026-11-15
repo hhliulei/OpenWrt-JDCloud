@@ -10,7 +10,7 @@
 | --- | --- | --- | --- | --- | --- |
 | ImmortalWrt（`immortalwrt`） | `laipeng668/immortalwrt.git` | `openwrt-25.12` | 6.12，构建时开 `CONFIG_TESTING_KERNEL` 用测试内核（当前为 6.18） | NSS 12.5 | 雅典娜：正常 ath11k（12.5 不提供 WiFi offload）；太乙：无 |
 | LiBwrt（`libwrt`） | `LiBwrt/openwrt-6.x.git` | `25.12-nss`（该仓库唯一分支） | 6.12 | NSS 11.4 | 雅典娜：`ATH11K_NSS_SUPPORT` 开（WiFi offload）；太乙：无 |
-| 官方 OpenWrt（`openwrt`） | `openwrt/openwrt.git` | `openwrt-25.12` | 6.12 | 无（上游不含 NSS 闭源加速） | 雅典娜：正常 ath11k；太乙：无 |
+| 官方 OpenWrt（`openwrt`） | `openwrt/openwrt.git` | `main`（快照） | 跟 main 的默认内核（当前 6.18） | 无（上游不含 NSS 闭源加速） | 雅典娜：正常 ath11k；太乙：无 |
 
 说明：
 - ImmortalWrt 用 `laipeng668/immortalwrt` 这个 fork 而不用官方 `immortalwrt/immortalwrt`，
@@ -18,8 +18,11 @@
   Athena 相关补丁）；官方 ImmortalWrt 同样有 `openwrt-25.12` 分支，可随时换回。
 - LiBwrt 的 `25.12-nss` 是 `LiBwrt/openwrt-6.x` 的唯一分支，`laipeng668/openwrt-6.x`
   是同一份代码的镜像（2026-11-15 核对过 HEAD 一致）。
-- 官方 OpenWrt 的 `main` 分支内核已是 6.18，但为求稳定，本仓库先用 `openwrt-25.12`
-  稳定分支；想跟 main 的话，把 workflow / build.sh 里的 `REPO_BRANCH` 改成 `main` 即可。
+- 官方 OpenWrt 只能用 `main` 分支：`openwrt-25.12` 分支的
+  `target/linux/qualcommax/image/ipq60xx.mk` 里根本没有 jdcloud 这两个机型
+  （2026-11-15 核对，25.12.3 发布镜像里也没有 jdcloud 固件）；
+  jdcloud 支持 2026-01 才合进 main。main 是快照分支，内核与软件包都跟最新，
+  这是官方那 4 个固件唯一可行的分支。
 
 ## 机型对照表
 
@@ -28,10 +31,11 @@
 | 雅典娜 | `jdcloud_re-cs-02` | IPQ6010 | 三频 WiFi 6：2.4G + 5G-1 + 5G-2，ath11k + QCN9074 固件 + `ipq-wifi-jdcloud_re-cs-02` 校准数据 | 顶部点阵屏用 `luci-app-athena-led`（diy-part2.sh 从 NONGFAH 拉取） |
 | 太乙 | `jdcloud_re-cs-07` | IPQ6010 | 无（NoWiFi） | 上游 Device 定义本身就排除了 ath11k / wpad；本仓库配置里再明确关掉 |
 
-两个机型在上游 `target/linux/qualcommax/image/ipq60xx.mk` 里都有
+两个机型在 ImmortalWrt / LiBwrt / 官方 main 的 `target/linux/qualcommax/image/ipq60xx.mk` 里都有
 `define Device/jdcloud_re-cs-02` / `define Device/jdcloud_re-cs-07`，
 `KERNEL_SIZE := 6144k`，`FitImage` 格式；LiBwrt 里还多一个 `EmmcImage`，
-所以 LiBwrt 的构建会额外产出 `factory.bin`。
+所以 LiBwrt 的构建会额外产出 `factory.bin`。注意：官方 `openwrt-25.12` 分支里没有这两个机型，
+所以官方源码用 `main` 分支（见上表）。
 
 ## 追加的插件 feed（scripts/diy-part1.sh）
 
@@ -56,11 +60,16 @@ workflow 里跑的是 `./scripts/feeds update -a` / `./scripts/feeds install -a`
 
 ## 假设与不确定点（首次构建前请核对）
 
-1. **设备名拼写**：配置里用的是上游 `TARGET_DEVICES` 的写法
-   `CONFIG_TARGET_DEVICE_qualcommax_ipq60xx_DEVICE_jdcloud_re-cs-02=y`（带 `-`），
-   和 laipeng668/openwrt-ci-roc 的配置一致。Wall-WRT 的生成器用的是下划线写法
-   `jdcloud_re_cs_02`。workflow 的 defconfig 步骤会校验这一行，丢了就直接报错，
-   不会悄悄编出别的机型；如果报错，按报错提示换一种拼写再试。
+1. **机型符号（2026-11-15 已踩坑并修复）**：机型必须用 Target Profile choice 的符号
+   `CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdcloud_re-cs-02=y`（没有 `TARGET_DEVICE_` 这一段）。
+   之前写的是 `CONFIG_TARGET_DEVICE_qualcommax_ipq60xx_DEVICE_...=y`，那是多机型
+   （`MULTI_PROFILE`）菜单里的布尔项；不开 `MULTI_PROFILE` 时它在 Kconfig 里不可见，
+   `make defconfig` 会悄悄丢掉这一行，choice 就默认选中首个机型（`8devices_mango-dvk`），
+   导致 2026-11-15 的 #3/#4 全部在 defconfig 校验失败。本仓库已在本地用
+   ImmortalWrt（`openwrt-25.12`）和官方 OpenWrt（`main`）的源码实测验证：改对符号后
+   defconfig 保留机型行，`CONFIG_TARGET_PROFILE="DEVICE_jdcloud_re-cs-02"`。
+   另注意 `CONFIG_TARGET_PER_DEVICE_ROOTFS=y` 同样只在 `MULTI_PROFILE` 菜单里才可见，
+   单机型构建不需要它，配置里已去掉。
 2. **NSS 驱动包名**：LiBwrt 配置里写了 `kmod-qca-nss-drv` / `kmod-qca-nss-ecm`。
    如果该分支里包名有变，`make defconfig` 会静默丢掉这一行，NSS 加速可能不生效，
    请以首次构建的 `Config-*.txt` 为准核对（Release 里自带）。
