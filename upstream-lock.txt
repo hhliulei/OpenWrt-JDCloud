@@ -4,12 +4,13 @@
 # 记录该次定时构建实际用的各源提交号（git clone --depth=1 拉到的分支最新提交）。
 # 提交信息带 [skip ci]，且本文件不在 push 触发的 paths 里，不会触发新的构建。
 # 内核版本以各 Release 里附的 Config-*.txt / upstream-lock.txt 为准。
-# 最后同步：26.11.26-23.51（UTC+8），对应定时构建 https://github.com/hhliulei/OpenWrt-JDCloud/actions/runs/45799465827
+# 最后同步：26.11.28-23.18（UTC+8），对应定时构建 https://github.com/hhliulei/OpenWrt-JDCloud/actions/runs/46131408537
 #
 # 源码 / 分支 / 构建用提交：
 #   immortalwrt https://github.com/laipeng668/immortalwrt.git openwrt-25.12 2779d3ac1d7169e205c4068a35b7d8572f537e7e
-#   libwrt https://github.com/LiBwrt/openwrt-6.x.git 25.12-nss 000a4e74b17edfdc296f9eaa674344fc0adaaf95
-#   openwrt https://github.com/openwrt/openwrt.git main 15df7fcd242532da47172358bcab226228919ca2
+#   libwrt https://github.com/LiBwrt/openwrt-6.x.git 25.12-nss 54a6920bd4ac42310290de5c7fa39c590bdfdd48
+#   openwrt https://github.com/openwrt/openwrt.git main 77c14c5a0a0c21684feff750d0618d24f1393978
+#   注意：openwrt 本次构建中出现多个不同提交（上游在构建期间更新了）：openwrt https://github.com/openwrt/openwrt.git main ec619a6d71c40631d873337fdb6bb994423e033e
 #
 # 追加的插件 feed（scripts/diy-part1.sh）：
 #   src-git openclash    https://github.com/vernesong/OpenClash.git
